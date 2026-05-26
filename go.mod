@@ -1,6 +1,6 @@
-module github.com/janetiq/k8sreceiver
+module github.com/janetIQ/k8sreceiver
 
-go 1.24.0
+go 1.26.3
 
 require (
 	go.opentelemetry.io/collector/component v1.59.0
