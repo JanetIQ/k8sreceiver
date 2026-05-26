@@ -30,9 +30,7 @@ func (e *emitter) baseResourceAttrs() pcommon.Map {
 func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eventType string) error {
 	ld := plog.NewLogs()
 
-	// rl := ld.ResourceLogs().AppendEmpty()
-	// rl.Resource().Attributes().PutStr("janetiq.datasource.id", e.datasourceID)
-	// rl.Resource().Attributes().PutStr("k8s.cluster.name", e.clusterName)
+	rl := ld.ResourceLogs().AppendEmpty()
 
 	sl := rl.ScopeLogs().AppendEmpty()
 	sl.Scope().SetName("janetk8sreceiver/hierarchy")
@@ -76,10 +74,8 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 func (e *emitter) EmitK8sEvent(ctx context.Context, ev *corev1.Event) error {
 	ld := plog.NewLogs()
 
-	// rl := ld.ResourceLogs().AppendEmpty()
-	// rl.Resource().Attributes().PutStr("janetiq.datasource.id", e.datasourceID)
-	// rl.Resource().Attributes().PutStr("k8s.cluster.name", e.clusterName)
-	// rl.Resource().Attributes().PutStr("k8s.namespace.name", ev.Namespace)
+	rl := ld.ResourceLogs().AppendEmpty()
+	rl.Resource().Attributes().PutStr("k8s.namespace.name", ev.Namespace)
 
 	sl := rl.ScopeLogs().AppendEmpty()
 	sl.Scope().SetName("janetk8sreceiver/events")

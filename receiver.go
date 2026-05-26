@@ -30,7 +30,7 @@ func newReceiver(cfg *Config, logger *zap.Logger, consumer consumer.Logs) (*jane
 		config:  cfg,
 		logger:  logger,
 		index:   newHierarchyIndex(),
-		emitter: &emitter{consumer: consumer, datasourceID: cfg.DatasourceID, clusterName: cfg.ClusterName},
+		emitter: &emitter{consumer: consumer},
 		stopCh:  make(chan struct{}),
 	}, nil
 }
