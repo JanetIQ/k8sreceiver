@@ -10,6 +10,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	K8sHierarchyScopeName string = "janetk8sreceiver/hierarchy"
+	K8sEventsScopeName    string = "janetk8sreceiver/events"
+)
+
 type emitter struct {
 	consumer     consumer.Logs
 	datasourceID string
@@ -33,7 +38,7 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 	rl := ld.ResourceLogs().AppendEmpty()
 
 	sl := rl.ScopeLogs().AppendEmpty()
-	sl.Scope().SetName("janetk8sreceiver/hierarchy")
+	sl.Scope().SetName(K8sHierarchyScopeName)
 
 	lr := sl.LogRecords().AppendEmpty()
 	lr.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
@@ -42,8 +47,8 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 	attrs := lr.Attributes()
 
 	// Signal to downstream processors/exporters what this record is
-	attrs.PutStr("janetiq.record.type", "k8s.hierarchy")
-	attrs.PutStr("janetiq.event.type", eventType) // ADDED | MODIFIED | DELETED
+	attrs.PutStr("janet.record.type", "k8s.hierarchy")
+	attrs.PutStr("janet.event.type", eventType) // ADDED | MODIFIED | DELETED
 
 	// Node identity
 	attrs.PutStr("k8s.object.uid", node.UID)
@@ -58,8 +63,8 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 		attrs.PutStr(k, v)
 	}
 
-	// Edges — serialised as a slice of maps for the exporter to build Neo4j edges
-	edgesSlice := attrs.PutEmptySlice("janetiq.edges")
+	// Edges — serialised as a slice of maps for the exporter 
+	edgesSlice := attrs.PutEmptySlice("janet.edges")
 	for _, edge := range node.Edges {
 		edgeMap := edgesSlice.AppendEmpty().SetEmptyMap()
 		edgeMap.PutStr("from_uid", edge.FromUID)
@@ -78,7 +83,7 @@ func (e *emitter) EmitK8sEvent(ctx context.Context, ev *corev1.Event) error {
 	rl.Resource().Attributes().PutStr("k8s.namespace.name", ev.Namespace)
 
 	sl := rl.ScopeLogs().AppendEmpty()
-	sl.Scope().SetName("janetk8sreceiver/events")
+	sl.Scope().SetName(K8sEventsScopeName)
 
 	lr := sl.LogRecords().AppendEmpty()
 
@@ -94,12 +99,10 @@ func (e *emitter) EmitK8sEvent(ctx context.Context, ev *corev1.Event) error {
 	lr.Body().SetStr(ev.Message)
 
 	attrs := lr.Attributes()
-	attrs.PutStr("janetiq.record.type", "k8s.event")
+	attrs.PutStr("janet.record.type", "k8s.event")
 	attrs.PutStr("event.domain", "k8s")
 	attrs.PutStr("event.name", ev.Name)
 	attrs.PutStr("event_type", ev.Type) // Normal | Warning
-	attrs.PutStr("reason", ev.Reason)
-	attrs.PutStr("note", ev.Message)
 
 	// Object the event is about
 	attrs.PutStr("object_kind", ev.InvolvedObject.Kind)
