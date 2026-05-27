@@ -26,7 +26,6 @@ func (e *emitter) baseResourceAttrs() pcommon.Map {
 	ld := plog.NewLogs()
 	rl := ld.ResourceLogs().AppendEmpty()
 	attrs := rl.Resource().Attributes()
-	attrs.PutStr("janetiq.datasource.id", e.datasourceID)
 	attrs.PutStr("k8s.cluster.name", e.clusterName)
 	return attrs
 }

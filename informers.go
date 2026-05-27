@@ -12,6 +12,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+const (
+	AddedEvent    string = "ADDED"
+	ModifiedEvent string = "MODIFIED"
+	DeletedEvent  string = "DELETED"
+)
+
 type objectMeta struct {
 	uid       string
 	name      string
@@ -101,14 +107,14 @@ func (r *janetK8sReceiver) registerInformer(
 		AddFunc: func(obj interface{}) {
 			node := r.buildNode(kind, extract(obj))
 			r.index.Upsert(node)
-			if err := r.emitter.EmitHierarchyNode(context.Background(), node, "ADDED"); err != nil {
+			if err := r.emitter.EmitHierarchyNode(context.Background(), node, AddedEvent); err != nil {
 				r.logger.Error("failed to emit hierarchy node", zap.Error(err))
 			}
 		},
 		UpdateFunc: func(_, obj interface{}) {
 			node := r.buildNode(kind, extract(obj))
 			r.index.Upsert(node)
-			if err := r.emitter.EmitHierarchyNode(context.Background(), node, "MODIFIED"); err != nil {
+			if err := r.emitter.EmitHierarchyNode(context.Background(), node, ModifiedEvent); err != nil {
 				r.logger.Error("failed to emit hierarchy node", zap.Error(err))
 			}
 		},
@@ -116,7 +122,7 @@ func (r *janetK8sReceiver) registerInformer(
 			meta := extract(obj)
 			node := r.buildNode(kind, meta)
 			r.index.Delete(meta.uid)
-			if err := r.emitter.EmitHierarchyNode(context.Background(), node, "DELETED"); err != nil {
+			if err := r.emitter.EmitHierarchyNode(context.Background(), node, DeletedEvent); err != nil {
 				r.logger.Error("failed to emit hierarchy node", zap.Error(err))
 			}
 		},
