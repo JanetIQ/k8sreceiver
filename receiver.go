@@ -17,12 +17,19 @@ import (
 )
 
 type janetK8sReceiver struct {
-	config    *Config
-	logger    *zap.Logger
-	clientset kubernetes.Interface
-	index     *HierarchyIndex
-	emitter   *emitter
-	stopCh    chan struct{}
+	config      *Config
+	logger      *zap.Logger
+	clientset   kubernetes.Interface
+	clusterName string
+	clusterUID  string
+	index       *HierarchyIndex
+	emitter     *emitter
+	stopCh      chan struct{}
+}
+
+type clusterIdentity struct {
+	Name string
+	UID  string // for now this will be the "k8s_cluster_"+ $(kube-system namespace UID)
 }
 
 func newReceiver(cfg *Config, logger *zap.Logger, consumer consumer.Logs) (*janetK8sReceiver, error) {
@@ -35,6 +42,26 @@ func newReceiver(cfg *Config, logger *zap.Logger, consumer consumer.Logs) (*jane
 	}, nil
 }
 
+func (r *janetK8sReceiver) inferClusterIdentity(ctx context.Context, clientset kubernetes.Interface, kubeconfigPath string) (clusterIdentity, error) {
+
+	ns, err := clientset.CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
+	if err != nil {
+		return clusterIdentity{}, err
+	}
+	uid := "k8s_cluster_" + string(ns.UID)
+
+	name := ""
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeconfigPath != "" {
+		loadingRules.ExplicitPath = kubeconfigPath
+	}
+	if cfg, err := loadingRules.Load(); err == nil && cfg.CurrentContext != "" {
+		name = cfg.CurrentContext
+	}
+
+	return clusterIdentity{Name: name, UID: uid}, nil
+}
+
 func (r *janetK8sReceiver) Start(ctx context.Context, host component.Host) error {
 	k8sConfig, err := r.buildK8sConfig()
 	if err != nil {
@@ -44,6 +71,20 @@ func (r *janetK8sReceiver) Start(ctx context.Context, host component.Host) error
 	r.clientset, err = kubernetes.NewForConfig(k8sConfig)
 	if err != nil {
 		return fmt.Errorf("creating k8s client: %w", err)
+	}
+
+	identity, err := r.inferClusterIdentity(ctx, r.clientset, r.config.KubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("Failed to infer cluster identity: %w", err)
+	}
+	r.clusterName = identity.Name
+	r.clusterUID = identity.UID
+
+	// create cluster node
+	node := r.buildClusterNode()
+	r.index.Upsert(node)
+	if err := r.emitter.EmitHierarchyNode(context.Background(), node, AddedEvent); err != nil {
+		return fmt.Errorf("Failed to create cluster node: %w", err)
 	}
 
 	// Start informers — blocks until cache is synced then returns

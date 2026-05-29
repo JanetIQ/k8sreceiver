@@ -16,9 +16,7 @@ const (
 )
 
 type emitter struct {
-	consumer     consumer.Logs
-	datasourceID string
-	clusterName  string
+	consumer consumer.Logs
 }
 
 // baseResourceAttrs stamps the janetiq + cluster attrs that go on every record
@@ -26,7 +24,6 @@ func (e *emitter) baseResourceAttrs() pcommon.Map {
 	ld := plog.NewLogs()
 	rl := ld.ResourceLogs().AppendEmpty()
 	attrs := rl.Resource().Attributes()
-	attrs.PutStr("k8s.cluster.name", e.clusterName)
 	return attrs
 }
 
@@ -60,6 +57,17 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 	// Full resolved ancestry attrs — k8s.pod.name, k8s.deployment.name etc
 	for k, v := range node.Attrs {
 		attrs.PutStr(k, v)
+	}
+
+	// build associated k8s node labels
+	labels := attrs.PutEmptyMap("labels")
+	for k, v := range node.Labels {
+		labels.PutStr(k, v)
+	}
+	// build associated k8s node annotations
+	ann := attrs.PutEmptyMap("annotations")
+	for k, v := range node.Annotations {
+		ann.PutStr(k, v)
 	}
 
 	// Edges — serialised as a slice of maps for the exporter 

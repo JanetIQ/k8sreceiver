@@ -11,7 +11,9 @@ type ResolvedNode struct {
 	Namespace string
 	// Full ancestry attrs — ready to stamp onto log records
 	// e.g. "k8s.pod.name" -> "bad-pod", "k8s.deployment.name" -> "bad-pod"
-	Attrs map[string]string
+	Attrs       map[string]string
+	Labels      map[string]string
+	Annotations map[string]string
 	// Direct edges to parent UIDs
 	Edges []Edge
 }
@@ -122,7 +124,7 @@ var kindToOtelKey = map[string]string{
 	"HorizontalPodAutoscaler": "k8s.hpa.name",
 }
 
-// kindToRelation maps K8s owner kinds to Neo4j edge relation names
+// kindToRelation maps K8s owner kinds to edge relation names
 var kindToRelation = map[string]string{
 	"ReplicaSet":  "MANAGES",
 	"Deployment":  "CONTAINS",
@@ -132,4 +134,5 @@ var kindToRelation = map[string]string{
 	"CronJob":     "CONTAINS",
 	"Node":        "CONTAINS",
 	"Namespace":   "CONTAINS",
+	"Cluster":     "OWNS",
 }
