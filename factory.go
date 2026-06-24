@@ -8,6 +8,8 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 )
 
+const ReceiverVersion = "0.1.0"
+
 var typeStr = component.MustNewType("janetk8s")
 
 // NewFactory returns the OTel receiver factory for janetk8s.

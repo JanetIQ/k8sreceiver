@@ -39,6 +39,13 @@ func (r *janetK8sReceiver) startInformers(ctx context.Context) {
 		},
 	)
 
+	r.registerInformer(factory.Core().V1().ConfigMaps().Informer(), "ConfigMap",
+		func(obj interface{}) objectMeta {
+			o := obj.(*corev1.ConfigMap)
+			return objectMeta{string(o.UID), o.Name, o.Namespace, o.Labels, o.Annotations, o.OwnerReferences}
+		},
+	)
+
 	r.registerInformer(factory.Apps().V1().ReplicaSets().Informer(), "ReplicaSet",
 		func(obj interface{}) objectMeta {
 			o := obj.(*appsv1.ReplicaSet)
@@ -114,8 +121,9 @@ func (r *janetK8sReceiver) registerInformer(
 				r.logger.Error("failed to emit hierarchy node", zap.Error(err))
 			}
 		},
-		UpdateFunc: func(_, obj interface{}) {
-			node := r.buildNode(kind, extract(obj))
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			_ = oldObj
+			node := r.buildNode(kind, extract(newObj))
 			r.index.Upsert(node)
 			if err := r.emitter.EmitHierarchyNode(context.Background(), node, ModifiedEvent); err != nil {
 				r.logger.Error("failed to emit hierarchy node", zap.Error(err))

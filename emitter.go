@@ -7,12 +7,14 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	conventions "go.opentelemetry.io/otel/semconv/v1.40.0"
 	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	K8sHierarchyScopeName string = "janetk8sreceiver/hierarchy"
 	K8sEventsScopeName    string = "janetk8sreceiver/events"
+	K8sEventKey           string = "k8s.event"
 )
 
 type emitter struct {
@@ -32,6 +34,8 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 	ld := plog.NewLogs()
 
 	rl := ld.ResourceLogs().AppendEmpty()
+	rl.Resource().Attributes().PutStr("k8s.namespace.name", node.Namespace)
+	rl.Resource().Attributes().PutStr(string(conventions.ServiceNameKey), node.Name)
 
 	sl := rl.ScopeLogs().AppendEmpty()
 	sl.Scope().SetName(K8sHierarchyScopeName)
@@ -45,6 +49,7 @@ func (e *emitter) EmitHierarchyNode(ctx context.Context, node *ResolvedNode, eve
 	// Signal to downstream processors/exporters what this record is
 	attrs.PutStr("janet.record.type", "k8s.hierarchy")
 	attrs.PutStr("janet.event.type", eventType) // ADDED | MODIFIED | DELETED
+	attrs.PutStr("janet.receiver.version", ReceiverVersion)
 
 	// Node identity
 	attrs.PutStr("k8s.object.uid", node.UID)
@@ -87,7 +92,9 @@ func (e *emitter) EmitK8sEvent(ctx context.Context, ev *corev1.Event) error {
 	ld := plog.NewLogs()
 
 	rl := ld.ResourceLogs().AppendEmpty()
-	rl.Resource().Attributes().PutStr("k8s.namespace.name", ev.Namespace)
+	resAttrs := rl.Resource().Attributes()
+	resAttrs.PutStr("k8s.namespace.name", ev.Namespace)
+	resAttrs.PutStr(string(conventions.ServiceNameKey), ev.InvolvedObject.Name)
 
 	sl := rl.ScopeLogs().AppendEmpty()
 	sl.Scope().SetName(K8sEventsScopeName)
@@ -106,7 +113,8 @@ func (e *emitter) EmitK8sEvent(ctx context.Context, ev *corev1.Event) error {
 	lr.Body().SetStr(ev.Message)
 
 	attrs := lr.Attributes()
-	attrs.PutStr("janet.record.type", "k8s.event")
+	attrs.PutStr("janet.record.type", K8sEventKey)
+	attrs.PutStr("janet.receiver.version", ReceiverVersion)
 	attrs.PutStr("event.domain", "k8s")
 	attrs.PutStr("event.name", ev.Name)
 	attrs.PutStr("event_type", ev.Type) // Normal | Warning
